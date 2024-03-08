@@ -1,1 +1,1 @@
-from .utils.attribution import spotFA
+from .utils.attribution import spotXAI

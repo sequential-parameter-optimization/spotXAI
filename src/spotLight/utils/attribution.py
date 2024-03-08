@@ -11,9 +11,9 @@ import torch
 import numpy as np
 
 
-class spotFA:
+class spotXAI:
     """
-    Spot feature attribution class capable of performing the following tasks:
+    Spot XAI class capable of performing the following tasks:
     * Training the weights of a PyTorch model.
     * Applying feature attribution methods to the trained model.
     """
