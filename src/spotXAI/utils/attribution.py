@@ -1,6 +1,6 @@
 import pandas as pd
 
-from captum.attr import IntegratedGradients, DeepLift, GradientShap, FeatureAblation
+from captum.attr import IntegratedGradients, DeepLift, GradientShap, FeatureAblation, LayerConductance
 
 from spotPython.hyperparameters.optimizer import optimizer_handler
 
@@ -124,8 +124,7 @@ class spotXAI:
                 "Unsupported attribution method. Please choose from 'IntegratedGradients', 'DeepLift', 'GradientShap', or 'FeatureAblation'."
             )
 
-        for inputs, labels in self.test_set:
-            inputs = inputs.unsqueeze(0)
+        for inputs, labels in self.test_loader:
             attributions = attr.attribute(inputs, return_convergence_delta=False, baselines=baseline)
             if total_attributions is None:
                 total_attributions = attributions
@@ -149,3 +148,32 @@ class spotXAI:
 
         df = pd.DataFrame({"Feature Index": top_n_indices + 1, attr_method + "Attribution": top_n_importances})
         return df
+
+    def get_layer_conductance(self, layer_idx):
+        """
+        Compute the average layer conductance attributions for a specified layer in the model.
+
+        Args:
+        - layer_idx (int): Index of the layer for which to compute layer conductance attributions.
+
+        Returns:
+        - numpy.ndarray: An array containing the average layer conductance attributions for the specified layer. The shape of the array corresponds to the shape of the attributions.
+        """
+        self.model.eval()
+        total_layer_attributions = None
+        layers = self.model.layers
+        model = self.model
+        print("Conductance analysis for layer: ", layers[layer_idx])
+        lc = LayerConductance(model, layers[layer_idx])
+
+        for inputs, labels in self.test_loader:
+            lc_attr_test = lc.attribute(inputs, n_steps=10, attribute_to_layer_input=True)
+            if total_layer_attributions is None:
+                total_layer_attributions = lc_attr_test
+            else:
+                if len(lc_attr_test) == len(total_layer_attributions):
+                    total_layer_attributions += lc_attr_test
+
+        avg_layer_attributions = total_layer_attributions.mean(dim=0).detach().numpy()
+
+        return avg_layer_attributions
