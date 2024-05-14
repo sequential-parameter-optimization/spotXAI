@@ -105,8 +105,7 @@ class spotXAI:
         - abs_attr (bool, optional): Wether the method should sort by the absolute attribution values. Defaults to True.
 
         Returns:
-        - selected_indices (list): Indices of the n most significant features.
-        - selected_importance (list): Importance scores of the n most significant features.
+        - df (pd.DataFrame): A DataFrame containing the indices of the n important features with their corresponding attribution values.
         """
         self.model.eval()
         total_attributions = None
@@ -156,15 +155,12 @@ class spotXAI:
         Performs a one-tailed t-test to check which feature attributions differ significantly from 0.
 
         Args:
-        - n_rel (int, optional): Number of most significant features to return. Defaults to 20.
+        - alpha (float, optional): The significance level for the t-test. Defaults to 0.05.
         - attr_method (str, optional): Attribution method to use. Choose from 'IntegratedGradients', 'DeepLift', or 'FeatureAblation'. Defaults to 'IntegratedGradients'.
-        - plot (bool, optional): Whether to plot the attribution scores. Defaults to True.
         - baseline (torch.Tensor, optional): Baseline for the attribution methods. Baseline is defined as input features. Defaults to None.
-        - abs_attr (bool, optional): Wether the method should sort by the absolute attribution values. Defaults to True.
 
         Returns:
-        - selected_indices (list): Indices of the n most significant features.
-        - selected_importance (list): Importance scores of the n most significant features.
+        - df (pd.DataFrame): A DataFrame containing the indices of the features deemed significant and their corresponding p-values.
         """
         self.model.eval()
         total_attributions = None
