@@ -190,7 +190,7 @@ class spotXAI:
             else:
                 if len(attributions) == len(total_attributions):
                     total_attributions += attributions
-                    print(total_attributions)
+                    #print(total_attributions)
             t_statistic, p_value = ttest_1samp(total_attributions, popmean=0)
 
         for i, p in enumerate(p_value):
