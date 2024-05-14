@@ -10,6 +10,8 @@ import torch
 
 import numpy as np
 
+from scipy.stats import ttest_1samp
+
 
 class spotXAI:
     """
@@ -146,7 +148,66 @@ class spotXAI:
         # Get the importance values for the top n features
         top_n_importances = avg_attributions[top_n_indices]
 
-        df = pd.DataFrame({"Feature Index": top_n_indices + 1, attr_method + "Attribution": top_n_importances})
+        df = pd.DataFrame({"Feature Index": top_n_indices, attr_method + "Attribution": top_n_importances})
+        return df
+
+    def get_sig_features_t_test(self, alpha=0.05, attr_method="IntegratedGradients", baseline=None, abs_attr=True):
+        """
+        Performs a one-tailed t-test to check which feature attributions differ significantly from 0.
+
+        Args:
+        - n_rel (int, optional): Number of most significant features to return. Defaults to 20.
+        - attr_method (str, optional): Attribution method to use. Choose from 'IntegratedGradients', 'DeepLift', or 'FeatureAblation'. Defaults to 'IntegratedGradients'.
+        - plot (bool, optional): Whether to plot the attribution scores. Defaults to True.
+        - baseline (torch.Tensor, optional): Baseline for the attribution methods. Baseline is defined as input features. Defaults to None.
+        - abs_attr (bool, optional): Wether the method should sort by the absolute attribution values. Defaults to True.
+
+        Returns:
+        - selected_indices (list): Indices of the n most significant features.
+        - selected_importance (list): Importance scores of the n most significant features.
+        """
+        self.model.eval()
+        total_attributions = None
+
+        if attr_method == "IntegratedGradients":
+            attr = IntegratedGradients(self.model)
+        elif attr_method == "DeepLift":
+            attr = DeepLift(self.model)
+        elif attr_method == "GradientShap":  # Todo: would need a baseline
+            if baseline is None:
+                raise ValueError("baseline cannot be 'None' for GradientShap")
+            attr = GradientShap(self.model)
+        elif attr_method == "FeatureAblation":
+            attr = FeatureAblation(self.model)
+        else:
+            raise ValueError(
+                "Unsupported attribution method. Please choose from 'IntegratedGradients', 'DeepLift', 'GradientShap', or 'FeatureAblation'."
+            )
+
+        significant_features_indices = []
+        p_values = []
+
+        for i, (inputs, labels) in enumerate(self.test_loader):
+            attributions = attr.attribute(inputs, return_convergence_delta=False, baselines=baseline)
+            if total_attributions is None:
+                total_attributions = attributions
+            else:
+                if len(attributions) == len(total_attributions):
+                    total_attributions += attributions
+                    print(total_attributions)
+            t_statistic, p_value = ttest_1samp(total_attributions, popmean=0)
+
+        for i, p in enumerate(p_value):
+            if p < alpha:
+                p_values.append(p)
+                significant_features_indices.append(i)
+
+            # sig_mask = np.array(significant_features_indices)
+            # p_array = np.array(p_values)
+            # sig_p = p_array[sig_mask]
+
+        df = pd.DataFrame({"Feature Index": significant_features_indices, "p value": p_values})
+
         return df
 
     def get_layer_conductance(self, layer_idx):
