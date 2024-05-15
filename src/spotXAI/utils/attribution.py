@@ -180,29 +180,54 @@ class spotXAI:
                 "Unsupported attribution method. Please choose from 'IntegratedGradients', 'DeepLift', 'GradientShap', or 'FeatureAblation'."
             )
 
-        significant_features_indices = []
-        p_values = []
+        #significant_features_indices = []
+        #p_values = []
 
+        total_attributions = None
+
+        # Loop through the test loader
         for i, (inputs, labels) in enumerate(self.test_loader):
             attributions = attr.attribute(inputs, return_convergence_delta=False, baselines=baseline)
+            
             if total_attributions is None:
                 total_attributions = attributions
             else:
                 if len(attributions) == len(total_attributions):
                     total_attributions += attributions
-                    #print(total_attributions)
-            t_statistic, p_value = ttest_1samp(total_attributions, popmean=0)
+                else:
+                    print(f"Warning: Mismatched attribution lengths at batch {i}")
+
+        # Convert total_attributions to a suitable format for t-test
+        total_attributions = total_attributions.cpu().numpy() if torch.is_tensor(total_attributions) else total_attributions
+        
+        print(total_attributions)
+        print(total_attributions.shape)
+
+        # Perform t-test
+        t_statistic, p_value = ttest_1samp(total_attributions, popmean=0)
+
+        print(len(p_values))
+
+        #for i, p in enumerate(p_value):
+        #    if p < alpha:
+        #        p_values.append(p)
+        #        significant_features_indices.append(i-1)
+        #    else:
+        #        not_significant_indices.append(i-1)
+
+        res = []
 
         for i, p in enumerate(p_value):
-            if p < alpha:
-                p_values.append(p)
-                significant_features_indices.append(i)
+            is_significant = p < alpha
+            res.append({
+                "Feature Index": i,
+                "p value": p,
+                "Significant": is_significant
+            })
 
-            # sig_mask = np.array(significant_features_indices)
-            # p_array = np.array(p_values)
-            # sig_p = p_array[sig_mask]
+        df = pd.DataFrame(res)
 
-        df = pd.DataFrame({"Feature Index": significant_features_indices, "p value": p_values})
+
 
         return df
 
