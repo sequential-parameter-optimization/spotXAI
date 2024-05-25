@@ -1,6 +1,6 @@
 import pandas as pd
 
-from captum.attr import IntegratedGradients, DeepLift, GradientShap, FeatureAblation, LayerConductance
+from captum.attr import IntegratedGradients, DeepLift, GradientShap, FeatureAblation, LayerConductance, KernelShap
 
 from spotPython.hyperparameters.optimizer import optimizer_handler
 
@@ -120,13 +120,15 @@ class spotXAI:
             attr = GradientShap(self.model)
         elif attr_method == "FeatureAblation":
             attr = FeatureAblation(self.model)
+        elif attr_method == "KernelShap":
+            attr = KernelShap(self.model)
         else:
             raise ValueError(
-                "Unsupported attribution method. Please choose from 'IntegratedGradients', 'DeepLift', 'GradientShap', or 'FeatureAblation'."
+                "Unsupported attribution method. Please choose from 'IntegratedGradients', 'DeepLift', 'GradientShap', 'KernelShap', or 'FeatureAblation'."
             )
 
         for inputs, labels in self.test_loader:
-            attributions = attr.attribute(inputs, return_convergence_delta=False, baselines=baseline)
+            attributions = attr.attribute(inputs, baselines=baseline)
             if total_attributions is None:
                 total_attributions = attributions
             else:
@@ -180,55 +182,29 @@ class spotXAI:
                 "Unsupported attribution method. Please choose from 'IntegratedGradients', 'DeepLift', 'GradientShap', or 'FeatureAblation'."
             )
 
-        #significant_features_indices = []
-        #p_values = []
+        all_attributions = []
 
-        total_attributions = None
+        # Loop through the test loader and collect attributions
+        for inputs, labels in self.test_loader:
+            attributions = attr.attribute(inputs, baselines=baseline)
+            if abs_attr:
+                attributions = torch.abs(attributions)
+            all_attributions.append(attributions.cpu().numpy())
 
-        # Loop through the test loader
-        for i, (inputs, labels) in enumerate(self.test_loader):
-            attributions = attr.attribute(inputs, return_convergence_delta=False, baselines=baseline)
-            
-            if total_attributions is None:
-                total_attributions = attributions
-            else:
-                if len(attributions) == len(total_attributions):
-                    total_attributions += attributions
-                else:
-                    print(f"Warning: Mismatched attribution lengths at batch {i}")
+        # Concatenate all attributions
+        total_attributions = np.concatenate(all_attributions, axis=0)
 
-        # Convert total_attributions to a suitable format for t-test
-        total_attributions = total_attributions.cpu().numpy() if torch.is_tensor(total_attributions) else total_attributions
-        
         print(total_attributions)
+        print(len(total_attributions))
         print(total_attributions.shape)
 
         # Perform t-test
-        t_statistic, p_value = ttest_1samp(total_attributions, popmean=0)
+        t_statistic, p_value = ttest_1samp(total_attributions, popmean=0, axis=0)
 
-        print(len(p_values))
-
-        #for i, p in enumerate(p_value):
-        #    if p < alpha:
-        #        p_values.append(p)
-        #        significant_features_indices.append(i-1)
-        #    else:
-        #        not_significant_indices.append(i-1)
-
-        res = []
-
-        for i, p in enumerate(p_value):
-            is_significant = p < alpha
-            res.append({
-                "Feature Index": i,
-                "p value": p,
-                "Significant": is_significant
-            })
+        # Create a DataFrame with results
+        res = [{"Feature Index": i, "p value": p, "Significant": p < alpha} for i, p in enumerate(p_value)]
 
         df = pd.DataFrame(res)
-
-
-
         return df
 
     def get_layer_conductance(self, layer_idx):
