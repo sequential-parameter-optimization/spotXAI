@@ -128,12 +128,13 @@ class spotXAI:
             )
 
         for inputs, labels in self.test_loader:
-            attributions = attr.attribute(inputs, baselines=baseline)
-            if total_attributions is None:
-                total_attributions = attributions
-            else:
-                if len(attributions) == len(total_attributions):
-                    total_attributions += attributions
+            for i in range(len(inputs)):
+                attribution = attr.attribute(inputs[i].unsqueeze(0), baselines=baseline)
+                if total_attributions is None:
+                    total_attributions = attribution
+                else:
+                    if len(attribution) == len(total_attributions):
+                        total_attributions += attribution
 
         # Calculation of average attribution across all batches
         avg_attributions = total_attributions.mean(dim=0).detach().numpy()
@@ -151,6 +152,52 @@ class spotXAI:
 
         df = pd.DataFrame({"Feature Index": top_n_indices, attr_method + "Attribution": top_n_importances})
         return df
+
+    def get_attribution_distribution(self, attr_method="IntegratedGradients", baseline=None, abs_attr=True):
+        """
+        Compute the n most significant features for a given model and test set using a specified attribution methods.
+
+        Args:
+        - attr_method (str, optional): Attribution method to use. Choose from 'IntegratedGradients', 'DeepLift', or 'FeatureAblation'. Defaults to 'IntegratedGradients'.
+        - plot (bool, optional): Whether to plot the attribution scores. Defaults to True.
+        - baseline (torch.Tensor, optional): Baseline for the attribution methods. Baseline is defined as input features. Defaults to None.
+        - abs_attr (bool, optional): Wether the method should sort by the absolute attribution values. Defaults to True.
+
+        Returns:
+        - df (pd.DataFrame): A DataFrame containing the indices of the n important features with their corresponding attribution values.
+        """
+        self.model.eval()
+        total_attributions = None
+
+        if attr_method == "IntegratedGradients":
+            attr = IntegratedGradients(self.model)
+        elif attr_method == "DeepLift":
+            attr = DeepLift(self.model)
+        elif attr_method == "GradientShap":  # Todo: would need a baseline
+            if baseline is None:
+                raise ValueError("baseline cannot be 'None' for GradientShap")
+            attr = GradientShap(self.model)
+        elif attr_method == "FeatureAblation":
+            attr = FeatureAblation(self.model)
+        elif attr_method == "KernelShap":
+            attr = KernelShap(self.model)
+        else:
+            raise ValueError(
+                "Unsupported attribution method. Please choose from 'IntegratedGradients', 'DeepLift', 'GradientShap', 'KernelShap', or 'FeatureAblation'."
+            )
+
+        for inputs, labels in self.test_loader:
+            attributions = []
+            for i in range(len(inputs)):
+                attribution = attr.attribute(inputs[i].unsqueeze(0), baselines=baseline)
+                attributions += attribution
+                # attributions = torch.cat(attributions, dim=0)
+            if total_attributions is None:
+                total_attributions = attributions
+            else:
+                total_attributions += attributions
+
+        return total_attributions
 
     def get_sig_features_t_test(self, alpha=0.05, attr_method="IntegratedGradients", baseline=None, abs_attr=True):
         """
