@@ -4,12 +4,14 @@ import torch
 import pandas as pd
 
 
-def boxplot_attribution(attribution_distribution):
+def boxplot_attribution(attribution_distribution, size=(12, 8), attr_filter=None):
     """
     Generate a box plot to visualize the attribution values for each feature.
 
     Parameters:
     attribution_distribution (list): A list of attribution distributions for each feature.
+    size (tuple, optional): The size of the plot (width, height). Default is (12, 8).
+    attr_filter (tuple, optional): The y-axis limits for the plot. Default is None.
 
     Returns:
     None
@@ -29,14 +31,19 @@ def boxplot_attribution(attribution_distribution):
     df = pd.DataFrame(data, columns=["Feature Index", "Attribution Value"])
 
     # Create the box plot
-    plt.figure(figsize=(12, 8))
+    fig, ax = plt.subplots(figsize=size)
     sns.boxplot(x="Attribution Value", y="Feature Index", data=df, orient="h")
+
+    if attr_filter is not None:
+        ax.set_ylim(attr_filter)
 
     # Customize the plot
     plt.title("Box Plot of Attribution Values for Each Feature")
     plt.xlabel("Attribution Value")
     plt.ylabel("Feature Index")
     plt.grid(True)
+
+    plt.tight_layout()
 
     # Show the plot
     plt.show()
