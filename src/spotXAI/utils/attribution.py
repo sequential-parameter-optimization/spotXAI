@@ -155,19 +155,17 @@ class spotXAI:
 
     def get_attribution_distribution(self, attr_method="IntegratedGradients", baseline=None, abs_attr=True):
         """
-        Compute the n most significant features for a given model and test set using a specified attribution methods.
+        Compute the feature attribution distribution for a given model and test set using a specified attribution methods.
 
         Args:
         - attr_method (str, optional): Attribution method to use. Choose from 'IntegratedGradients', 'DeepLift', or 'FeatureAblation'. Defaults to 'IntegratedGradients'.
-        - plot (bool, optional): Whether to plot the attribution scores. Defaults to True.
         - baseline (torch.Tensor, optional): Baseline for the attribution methods. Baseline is defined as input features. Defaults to None.
-        - abs_attr (bool, optional): Wether the method should sort by the absolute attribution values. Defaults to True.
+        - abs_attr (bool, optional): Whether the method should sort by the absolute attribution values. Defaults to True.
 
         Returns:
-        - df (pd.DataFrame): A DataFrame containing the indices of the n important features with their corresponding attribution values.
+        - df (pd.DataFrame): A DataFrame containing the indices of the n important features with their corresponding attribution and target values.
         """
         self.model.eval()
-        total_attributions = None
 
         if attr_method == "IntegratedGradients":
             attr = IntegratedGradients(self.model)
@@ -186,18 +184,37 @@ class spotXAI:
                 "Unsupported attribution method. Please choose from 'IntegratedGradients', 'DeepLift', 'GradientShap', 'KernelShap', or 'FeatureAblation'."
             )
 
-        for inputs, labels in self.test_loader:
-            attributions = []
-            for i in range(len(inputs)):
-                attribution = attr.attribute(inputs[i].unsqueeze(0), baselines=baseline)
-                attributions += attribution
-                # attributions = torch.cat(attributions, dim=0)
-            if total_attributions is None:
-                total_attributions = attributions
-            else:
-                total_attributions += attributions
+        attribution_values = []
+        feature_indices = []
+        y_values = []
 
-        return total_attributions
+        for inputs, labels in self.test_loader:
+            # Batch processing
+            attributions = attr.attribute(inputs, baselines=baseline)
+
+            if abs_attr:
+                attributions = attributions.abs()
+
+            attributions = attributions.cpu().detach().numpy()
+            labels = labels.cpu().detach().numpy()
+
+            # Flatten attributions and corresponding labels for DataFrame
+            batch_size, num_features = attributions.shape
+            for i in range(batch_size):
+                for j in range(num_features):
+                    attribution_values.append(attributions[i, j])
+                    feature_indices.append(j)
+                    y_values.append(labels[i])
+
+        df = pd.DataFrame(
+            {
+                "attribution value": attribution_values,
+                "feature index": feature_indices,
+                "corresponding y_value": y_values,
+            }
+        )
+
+        return df
 
     def get_sig_features_t_test(self, alpha=0.05, attr_method="IntegratedGradients", baseline=None, abs_attr=True):
         """
