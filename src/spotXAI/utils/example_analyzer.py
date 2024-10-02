@@ -1,8 +1,8 @@
 from spotXAI import spotXAI
 
-from spotPython.data.diabetes import Diabetes
-from spotPython.light.regression.netlightregression import NetLightRegression
-from spotPython.utils.classes import get_removed_attributes_and_base_net
+from spotpython.data.diabetes import Diabetes
+from spotpython.light.regression.netlightregression import NetLightRegression
+from spotpython.utils.classes import get_removed_attributes_and_base_net
 
 from torch.nn import ReLU
 import torch

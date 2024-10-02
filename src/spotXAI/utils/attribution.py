@@ -2,15 +2,17 @@ import pandas as pd
 
 from captum.attr import IntegratedGradients, DeepLift, GradientShap, FeatureAblation, LayerConductance, KernelShap
 
-from spotPython.hyperparameters.optimizer import optimizer_handler
+from spotpython.hyperparameters.optimizer import optimizer_handler
 
 import torchmetrics.functional.regression
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, Subset
 import torch
 
 import numpy as np
 
 from scipy.stats import ttest_1samp
+
+from sklearn.preprocessing import StandardScaler
 
 
 class spotXAI:
@@ -20,7 +22,7 @@ class spotXAI:
     * Applying feature attribution methods to the trained model.
     """
 
-    def __init__(self, model, data, training_attributes, train_split, seed=123):
+    def __init__(self, model, data, training_attributes, train_split, scale_data=True, seed=123):
         """
         Initialize the spotLight instance.
 
@@ -30,6 +32,7 @@ class spotXAI:
             training_attributes (dict): Dictionary containing training attributes,
                                          including hyperparameters and optimizer details.
             train_split (float): The proportion of the dataset to be used for training.
+            scale_data (bool): if True: use standard scaler to scale the data sets.
         """
         torch.manual_seed(seed)
         np.random.seed(seed)
@@ -48,10 +51,36 @@ class spotXAI:
         self.train_set, self.test_set = torch.utils.data.random_split(
             self.dataset, [self.train_split, 1 - self.train_split]
         )
+
+        if scale_data == True:
+            self.scaler = StandardScaler()
+
+            # Extract the features and labels from the datasets
+            train_data = np.array([self.train_set[i][0].numpy() for i in range(len(self.train_set))])
+            test_data = np.array([self.test_set[i][0].numpy() for i in range(len(self.test_set))])
+
+            self.scaler.fit(train_data)
+
+            scaled_train_data = self.scaler.transform(train_data)
+            scaled_test_data = self.scaler.transform(test_data)
+
+            self.train_set = self._replace_dataset(self.train_set, scaled_train_data)
+            self.test_set = self._replace_dataset(self.test_set, scaled_test_data)
+
         self.train_loader = DataLoader(
             self.train_set, batch_size=self.batch_size, shuffle=True, drop_last=True, pin_memory=True
         )
         self.test_loader = DataLoader(self.test_set, batch_size=self.batch_size)
+
+    def _replace_dataset(self, dataset, new_data):
+        """
+        Replace the features in the dataset with the scaled features.
+        """
+        new_dataset = []
+        for i, (features, target) in enumerate(dataset):
+            new_features = torch.tensor(new_data[i], dtype=torch.float32)
+            new_dataset.append((new_features, target))
+        return Subset(new_dataset, range(len(new_dataset)))
 
     def train_model(self):
         """
@@ -79,6 +108,8 @@ class spotXAI:
             self.model.train()
             running_loss = 0.0
             for inputs, labels in self.train_loader:
+                print(inputs)
+                print(labels)
                 inputs = inputs.to(device)
                 labels = labels.to(device)
                 self.optimizer.zero_grad()
