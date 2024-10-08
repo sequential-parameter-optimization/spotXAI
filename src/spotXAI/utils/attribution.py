@@ -108,8 +108,6 @@ class spotXAI:
             self.model.train()
             running_loss = 0.0
             for inputs, labels in self.train_loader:
-                print(inputs)
-                print(labels)
                 inputs = inputs.to(device)
                 labels = labels.to(device)
                 self.optimizer.zero_grad()
