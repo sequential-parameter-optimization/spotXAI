@@ -104,7 +104,7 @@ class spotXAI:
         device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
         train_losses = []
         for epoch in range(self.epochs):
-            print("epochs {}/{}".format(epoch + 1, self.epochs))
+            #print("epochs {}/{}".format(epoch + 1, self.epochs))
             self.model.train()
             running_loss = 0.0
             for inputs, labels in self.train_loader:
@@ -119,7 +119,7 @@ class spotXAI:
                 running_loss += loss
 
             train_loss = running_loss / len(self.train_set)
-            print("train loss: ", train_loss.item())
+            #print("train loss: ", train_loss.item())
             train_losses.append(train_loss.detach().numpy())
 
     def get_n_most_sig_features(self, n_rel=20, attr_method="IntegratedGradients", baseline=None, abs_attr=True):
