@@ -35,7 +35,7 @@ def boxplot_attribution(attribution_distribution_df, size=(12, 8), attr_filter=N
     plt.show()
 
 
-def scatter_attribution(df, size=(12, 8), attr_filter=None, param_list = None):
+def scatter_attribution(df, size=(12, 8), attr_filter=None, param_list=None):
     """
     Generate a scatter plot to visualize the attribution values for each feature.
 
@@ -49,8 +49,8 @@ def scatter_attribution(df, size=(12, 8), attr_filter=None, param_list = None):
     None
     """
     if param_list:
-        param_df = pd.DataFrame({'Index': range(len(param_list)), 'Parameter': param_list})
-        attribution_distribution_df = pd.merge(df, param_df, left_on='feature index', right_on='Index')
+        param_df = pd.DataFrame({"Index": range(len(param_list)), "Parameter": param_list})
+        attribution_distribution_df = pd.merge(df, param_df, left_on="feature index", right_on="Index")
         fig, ax = plt.subplots(figsize=size)
         scatter = sns.scatterplot(
             x="Parameter",
