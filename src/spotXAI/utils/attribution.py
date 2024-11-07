@@ -161,7 +161,6 @@ class spotXAI:
         for inputs, labels in self.test_loader:
             for i in range(len(inputs)):
                 attribution = attr.attribute(inputs[i].unsqueeze(0), baselines=self.scaled_baseline)
-                print(attribution)
                 if total_attributions is None:
                     total_attributions = attribution
                 else:
