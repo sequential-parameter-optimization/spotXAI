@@ -156,11 +156,11 @@ class spotXAI:
             )
 
         if baseline is not None:
-            self.scaled_baseline = torch.Tensor(self.scaler.transform(baseline))
+            self.baseline = torch.Tensor(self.scaler.transform(baseline))
 
         for inputs, labels in self.test_loader:
             for i in range(len(inputs)):
-                attribution = attr.attribute(inputs[i].unsqueeze(0), baselines=self.scaled_baseline)
+                attribution = attr.attribute(inputs[i].unsqueeze(0), baselines=baseline)
                 if total_attributions is None:
                     total_attributions = attribution
                 else:
@@ -218,6 +218,9 @@ class spotXAI:
         attribution_values = []
         feature_indices = []
         y_values = []
+
+        if baseline is not None:
+            self.baseline = torch.Tensor(self.scaler.transform(baseline))
 
         for inputs, labels in self.test_loader:
             # Batch processing
